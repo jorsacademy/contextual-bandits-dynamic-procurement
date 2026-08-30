@@ -42,6 +42,7 @@ class DisjointLinearPolicy(BanditPolicy):
     def __init__(self, n_actions: int, feature_dim: int, ridge: float = 1.0) -> None:
         self.n_actions = n_actions
         self.feature_dim = feature_dim
+        self.ridge = ridge
         self.states = [
             _LinearArmState(np.eye(feature_dim) * ridge, np.zeros(feature_dim))
             for _ in range(n_actions)
@@ -101,6 +102,31 @@ class LinUCB(DisjointLinearPolicy):
             variance = float(x @ np.linalg.solve(state.a, x))
             scores.append(float(x @ theta + self.alpha * np.sqrt(max(variance, 0.0))))
         return int(np.argmax(scores))
+
+
+class DiscountedLinUCB(LinUCB):
+    """LinUCB with exponential forgetting for nonstationary supplier economics."""
+
+    def __init__(
+        self,
+        n_actions: int,
+        feature_dim: int,
+        *,
+        alpha: float = 1.0,
+        discount: float = 0.97,
+        ridge: float = 1.0,
+    ) -> None:
+        if not 0.0 < discount <= 1.0:
+            raise ValueError("discount must lie in (0, 1]")
+        super().__init__(n_actions, feature_dim, alpha=alpha, ridge=ridge)
+        self.discount = discount
+
+    def update(self, action: int, feature: np.ndarray, reward: float) -> None:
+        identity = np.eye(self.feature_dim) * self.ridge
+        for state in self.states:
+            state.a = self.discount * state.a + (1.0 - self.discount) * identity
+            state.b *= self.discount
+        super().update(action, feature, reward)
 
 
 class LinearThompson(DisjointLinearPolicy):
