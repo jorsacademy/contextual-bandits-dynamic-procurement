@@ -39,7 +39,7 @@ class ProcurementBanditEnv:
             raise ValueError("shift_fraction must lie in (0, 1)")
         self.seed = seed
         self.horizon = horizon
-        self.shift_step = int(round(horizon * shift_fraction))
+        self.shift_step = round(horizon * shift_fraction)
         self.reward_noise = reward_noise
         self.rng = np.random.default_rng(seed)
         self.suppliers = (
