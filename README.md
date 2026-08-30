@@ -14,7 +14,7 @@ The benchmark includes:
 
 - seeded synthetic procurement contexts;
 - multiple suppliers with heterogeneous price, quality and lead-time profiles;
-- supplier-specific linear reward models;
+- supplier-specific linear latent utility models;
 - stochastic realized procurement cost and service penalties;
 - a deterministic mid-horizon supplier regime shift;
 - a clairvoyant contextual oracle;
@@ -36,26 +36,22 @@ The buyer chooses exactly one supplier:
 A_t in {1, ..., K}
 ```
 
-The conditional expected utility is supplier-specific and linear:
+The latent conditional expected utility is supplier-specific and linear:
 
 ```text
-E[R_t | x_{t,a}, A_t=a] = x_{t,a}^T theta_a
+mu_t(a) = x_{t,a}^T theta_a
 ```
 
-The realized reward is the negative of procurement economics:
+The environment separately simulates operational procurement economics from supplier base price, market conditions, late delivery and defects. Realized bandit reward is the latent supplier utility adjusted by realized cost shocks and zero-mean noise. This separation keeps pseudo-regret auditable while retaining operational cost and service KPIs.
 
-```text
-reward = -(purchase_cost + late_penalty + quality_penalty)
-```
+The hidden parameters change for selected suppliers after a fixed regime-shift point, creating a controlled nonstationary test.
 
-plus zero-mean observation noise. The hidden parameters change for selected suppliers after a fixed regime-shift point, creating a controlled nonstationary test.
-
-The **clairvoyant oracle** knows the current hidden expected reward parameters and chooses the best supplier for each observed context. Learning policies do not have access to these parameters.
+The **clairvoyant oracle** knows the current hidden expected utility parameters and chooses the best supplier for each observed context. Learning policies do not have access to these parameters.
 
 ## Policies
 
 - `random`: uniform supplier selection;
-- `static_best_train`: one supplier chosen from training-period average realized economics;
+- `static_best_train`: one supplier chosen from training-period average expected utility;
 - `epsilon_greedy`: per-supplier ridge regressions with explicit exploration;
 - `linucb`: disjoint-arm upper-confidence linear bandit;
 - `linear_thompson`: Gaussian posterior-style linear Thompson Sampling;
