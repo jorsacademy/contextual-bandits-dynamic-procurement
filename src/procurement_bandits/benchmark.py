@@ -8,8 +8,8 @@ from .environment import ProcurementBanditEnv
 from .policies import (
     BanditPolicy,
     EpsilonGreedyLinear,
-    LinUCB,
     LinearThompson,
+    LinUCB,
     RandomPolicy,
     StaticSupplierPolicy,
 )
