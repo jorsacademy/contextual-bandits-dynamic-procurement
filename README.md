@@ -1,76 +1,75 @@
 # Contextual Bandits for Dynamic Procurement
 
-Research-oriented Industrial Engineering / Operations Research benchmark for **sequential supplier selection under contextual uncertainty and non-stationarity**.
+Research-oriented Industrial Engineering / Operations Research benchmark for **sequential supplier selection under contextual uncertainty, bandit feedback and non-stationarity**.
 
 ## Research question
 
-Can contextual bandit policies learn supplier-specific procurement economics quickly enough to reduce cumulative regret relative to static purchasing rules when demand urgency, market price, supplier reliability and delivery risk vary over time?
+Can contextual bandit policies learn supplier-specific procurement economics quickly enough to reduce cumulative regret relative to static purchasing rules, and does explicit forgetting improve adaptation when supplier quality changes?
 
 ## Current status
 
-**Phase 1 implemented: contextual procurement environment + oracle/bandit baselines + frozen regret benchmark.**
+**Feature-complete research benchmark.**
 
-The benchmark includes:
+The repository implements:
 
 - seeded synthetic procurement contexts;
-- multiple suppliers with heterogeneous price, quality and lead-time profiles;
-- supplier-specific linear latent utility models;
-- stochastic realized procurement cost and service penalties;
-- a deterministic mid-horizon supplier regime shift;
-- a clairvoyant contextual oracle;
+- heterogeneous supplier price, quality, lead-time and reliability profiles;
+- supplier-specific latent linear reward models;
+- operational realized procurement cost and service-failure simulation;
+- a truly stationary nominal final block;
+- a midpoint supplier-regime-shift block with hidden utility and operational reliability changes;
+- a clairvoyant contextual oracle used only for evaluation;
 - random and static-supplier baselines;
-- epsilon-greedy linear value estimation;
+- linear epsilon-greedy;
 - disjoint-arm LinUCB;
+- discounted LinUCB for nonstationary adaptation;
 - linear Thompson Sampling;
-- cumulative regret, realized cost, service-failure and supplier-selection reporting;
-- frozen in-distribution and shifted final seed blocks;
-- tests and GitHub Actions CI.
+- cumulative pseudo-regret, realized cost, reliability and supplier-share reporting;
+- decision-latency measurement;
+- paired bootstrap confidence intervals and exact sign tests;
+- frozen train/final seed blocks, tests, final report and CI across Python 3.10–3.12.
 
-## Decision model
+## Bandit-feedback contract
 
-At decision epoch `t`, the buyer observes context `z_t` containing demand pressure, spot-market conditions and urgency. For each supplier `a`, the environment builds an action feature vector `x_{t,a}` by combining the common context with supplier attributes.
+At epoch `t`, the buyer observes context and supplier-specific action features, selects exactly one supplier, and receives only that supplier's realized feedback.
 
-The buyer chooses exactly one supplier:
-
-```text
-A_t in {1, ..., K}
-```
-
-The latent conditional expected utility is supplier-specific and linear:
-
-```text
-mu_t(a) = x_{t,a}^T theta_a
-```
-
-The environment separately simulates operational procurement economics from supplier base price, market conditions, late delivery and defects. Realized bandit reward is the latent supplier utility adjusted by realized cost shocks and zero-mean noise. This separation keeps pseudo-regret auditable while retaining operational cost and service KPIs.
-
-The hidden parameters change for selected suppliers after a fixed regime-shift point, creating a controlled nonstationary test.
-
-The **clairvoyant oracle** knows the current hidden expected utility parameters and chooses the best supplier for each observed context. Learning policies do not have access to these parameters.
+The environment internally knows all conditional expected rewards so it can calculate oracle pseudo-regret after the decision. Those counterfactual expectations are **evaluation-only** and are never used by policy updates.
 
 ## Policies
 
-- `random`: uniform supplier selection;
-- `static_best_train`: one supplier chosen from training-period average expected utility;
-- `epsilon_greedy`: per-supplier ridge regressions with explicit exploration;
-- `linucb`: disjoint-arm upper-confidence linear bandit;
-- `linear_thompson`: Gaussian posterior-style linear Thompson Sampling;
-- `oracle`: contextual clairvoyant reference, used only for regret computation.
+- `random`;
+- `static_best_train`;
+- `epsilon_greedy`;
+- `linucb`;
+- `discounted_linucb`;
+- `linear_thompson`;
+- contextual clairvoyant oracle for regret accounting only.
 
-## Evaluation contract
+Discounted LinUCB exponentially forgets old sufficient statistics while still updating from only the chosen supplier's feedback. This creates an auditable adaptation baseline for the regime-shift experiment.
+
+## Frozen final evaluation
+
+`configs/experiment.json` freezes:
+
+- training seeds `0-19`;
+- nominal-final seeds `100-109`;
+- supplier-regime-shift seeds `200-209`;
+- horizon `400`;
+- midpoint shift at 50% of the horizon.
+
+The two final blocks are intentionally separate. Final seeds cannot be used for tuning policy parameters.
 
 Primary metric: **cumulative pseudo-regret** against the contextual oracle.
 
 Secondary metrics:
 
+- pre/post-shift regret;
 - mean realized procurement cost;
 - service-failure rate;
-- mean reward;
 - supplier-selection proportions;
-- pre-shift and post-shift regret;
-- adaptation after regime shift.
+- mean action-selection latency.
 
-A contextual policy is not promoted simply because it is more complex. If a static supplier or simple epsilon-greedy rule is competitive, that result is retained.
+Learned policies are paired by environment seed against `static_best_train` and report a paired 95% bootstrap interval, win rate and exact two-sided sign-test p-value.
 
 ## Reproduce
 
@@ -83,28 +82,44 @@ pytest -q
 python -m procurement_bandits.experiment
 ```
 
-## Repository layout
+## Repository map
 
 ```text
 src/procurement_bandits/
   environment.py
   policies.py
   benchmark.py
+  statistics.py
   experiment.py
 tests/
   test_environment.py
   test_policies.py
+  test_completion.py
 configs/
   experiment.json
 docs/
   experimental_protocol.md
+  final_report.md
 .github/workflows/
   ci.yml
 ```
 
+## Scientific acceptance rules
+
+1. policies receive only pre-decision context;
+2. policy updates use only the chosen action's feedback;
+3. oracle counterfactual expectations are evaluation-only;
+4. all methods face identical seeded realizations;
+5. stationary and regime-shift results remain separate;
+6. paired inference is performed by environment seed;
+7. regret, procurement cost, service reliability and latency are interpreted jointly;
+8. negative/null results are retained.
+
+See `docs/final_report.md` for the complete methodological contract.
+
 ## Scope boundary
 
-This repository studies contextual supplier selection with one procurement action per epoch. Multi-item joint ordering, inventory carryover, combinatorial supplier allocation, contracts and full reinforcement learning are separate extensions rather than hidden changes to this benchmark.
+This repository studies one supplier-selection decision per epoch. Inventory carryover, order quantities, pipeline inventory, delayed rewards and fleet/inventory state transitions are deliberately excluded; those belong in the separate approximate-dynamic-programming project.
 
 ## License
 
