@@ -2,7 +2,7 @@ import numpy as np
 
 from procurement_bandits.benchmark import run_benchmark, select_static_supplier
 from procurement_bandits.environment import ProcurementBanditEnv
-from procurement_bandits.policies import EpsilonGreedyLinear, LinUCB, LinearThompson
+from procurement_bandits.policies import EpsilonGreedyLinear, LinearThompson, LinUCB
 
 
 def test_linear_policies_return_valid_actions_after_updates():
